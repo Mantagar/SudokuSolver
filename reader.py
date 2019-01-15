@@ -1,8 +1,11 @@
 import cv2
 import imutils
 import numpy as np
+from PIL import Image
+import pytesseract
+from subprocess import Popen, PIPE
 
-file = 'sudoku.jpg'
+file = 'sudoku2.jpg'
 
 img = cv2.imread(file)
 
@@ -75,19 +78,64 @@ def getBox(x,y):
   return (int(pixelx),int(pixely))
 cv2.rectangle(both,getBox(4,4),getBox(4+1,4+1),(0,255,255),-1)
 
-cv2.imshow("both",both)
-(x1,y1) = getBox(4,4)
-(x2,y2) = getBox(5,5)
+#digit recognition
+digits = np.zeros((9,9),dtype=np.int8)
+board = ''
+proc = cv2.bitwise_not(proc)
+for x in range(9):
+  for y in range(9):
+    (x1,y1) = getBox(y,x)
+    (x2,y2) = getBox(y+1,x+1)
+    filename = "tmp/"+str(x)+"_"+str(y)+".bmp"
+    cv2.imwrite(filename,proc[y1+5:y2-3,x1+5:x2-3])
+    text = pytesseract.image_to_string(Image.open(filename),config='--psm 10 digits')
+    text = [ int(letter) for letter in text if letter.isdigit() ]
+    if len(text)==0:
+      text = 0
+    else:
+      text = text[0]
+    print(text,end="")
+    board += str(text)
+    digits[x,y] = text
+  print('')
+  board += '\n'
 
-#TODO reading digits
-#filling digits
+#solving
+with open('tmp/board.txt', 'w') as file:
+  file.write(board)
+  
+process = Popen(["solver/solver.exe", "tmp/board.txt"], stdout=PIPE)
+(output, err) = process.communicate()
+exit_code = process.wait()
+output = output.decode('ascii')
+print("SOLUTION:")
+#print(output)
+
 sudoku = np.zeros((9,9), dtype=np.int8)
+counter = 0
+for i in output:
+  x = int(counter/9)
+  y = int(counter%9)
+  if i == '\n':
+    print('')
+  elif i == '\r':
+    pass
+  else:
+    sudoku[y,x] = int(i)
+    counter += 1
+    print(i,end='')
+  if counter==81:
+    break
+  
+#filling digits
 for x in range(9):
   for y in range(9):
     coords = getBox(x,y+1)
     coords = tuple((coords[0]+10, coords[1]-10))
     text = str(sudoku[x,y])
-    cv2.putText(img, text, coords, cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255))
+    if digits[y,x]==0:
+      cv2.putText(img, text, coords, cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255))
+cv2.imshow("both",both)
 cv2.imshow("filled",img)
     
 cv2.waitKey(0)
