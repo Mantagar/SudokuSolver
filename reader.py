@@ -4,8 +4,9 @@ import numpy as np
 from PIL import Image
 import pytesseract
 from subprocess import Popen, PIPE
-
-file = 'sudoku2.jpg'
+import sys
+#system works well for images with sudoku board of similar size as in examples
+file = sys.argv[1]
 
 img = cv2.imread(file)
 
@@ -135,6 +136,8 @@ for x in range(9):
     text = str(sudoku[x,y])
     if digits[y,x]==0:
       cv2.putText(img, text, coords, cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255))
+    else:
+      cv2.putText(both, text, coords, cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0,255,0))
 cv2.imshow("both",both)
 cv2.imshow("filled",img)
     
